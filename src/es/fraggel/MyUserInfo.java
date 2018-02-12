@@ -1,3 +1,5 @@
+package es.fraggel;
+
 import com.jcraft.jsch.UserInfo;
 
 /**

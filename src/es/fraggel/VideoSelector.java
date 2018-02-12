@@ -1,3 +1,5 @@
+package es.fraggel;
+
 import com.jcraft.jsch.*;
 
 import javax.swing.*;
@@ -7,11 +9,11 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Vector;
+import java.util.Properties;
 
 /**
  * Created by u028978 on 08/02/2018.
@@ -25,17 +27,31 @@ public class VideoSelector {
     private JPanel panel1;
     DefaultListModel dlm =null;
     private static JFrame frame = null;
-
+    public static String ipRaspberry;
+    public static String userRaspberry;
+    public static String passRaspberry;
+    public static int portRaspberry;
     public VideoSelector() {
+        Properties prop=new Properties();
+        try{
+            prop.load(getClass().getClassLoader().getResourceAsStream("config.properties"));
+            ipRaspberry=prop.getProperty("ipRaspberry");
+            userRaspberry=prop.getProperty("userRaspberry");
+            passRaspberry=prop.getProperty("passRaspberry");
+            portRaspberry=Integer.parseInt(prop.getProperty("portRaspberry"));
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
+
         dlm = new DefaultListModel();
-        ejecutarComandoSSHRetorno("cat /home/pi/youtubeURLs.txt","192.168.1.16");
+        ejecutarComandoSSHRetorno("cat /home/pi/youtubeURLs.txt",ipRaspberry);
         list1.setModel(dlm);
 
         recargarListaReproducciónButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                copyFile("192.168.1.16");
-                //ejecutarComandoSSH("cat /root/youtubeURLs.txt","192.168.1.16");
+                copyFile(ipRaspberry);
             }
         });
         borrarButton.addActionListener(new ActionListener() {
@@ -70,34 +86,37 @@ public class VideoSelector {
     private void copyFile(String s) {
         try {
             Runtime rt=Runtime.getRuntime();
-            new File("c:\\HerliautomocionVideoScreen\\playlist.txt");
-            FileOutputStream fos2 = new FileOutputStream(new File("c:\\HerliautomocionVideoScreen\\playlist.txt"));
-            fos2.flush();
-            fos2.close();
-            fos2 = new FileOutputStream(new File("c:\\HerliautomocionVideoScreen\\playlist.txt"));
+            //new File("c:\\HerliautomocionVideoScreen\\playlist.txt");
+            //FileOutputStream fos2 = new FileOutputStream(new File("c:\\HerliautomocionVideoScreen\\playlist.txt"));
+            //fos2.flush();
+            //fos2.close();
+            //fos2 = new FileOutputStream(new File("c:\\HerliautomocionVideoScreen\\playlist.txt"));
             FileOutputStream fos = new FileOutputStream(new File("c:\\HerliautomocionVideoScreen\\youtubeURLs.txt"));
             for (int x = 1; x < dlm.getSize(); x++) {
-                Process exec = Runtime.getRuntime().exec("C:\\HerliautomocionVideoScreen\\youtube-dl -g -f 18 \""+dlm.getElementAt(x)+"\"");
-                StreamGobbler inputGobbler = new StreamGobbler(exec.getInputStream(), "INPUT");
-                inputGobbler.start();
-                exec.waitFor();
-                fos2.write(("omxplayer -b "+inputGobbler.getLinea().trim()+"\n").getBytes());
+                //Process exec = Runtime.getRuntime().exec("C:\\HerliautomocionVideoScreen\\youtube-dl -g -f 18 \""+dlm.getElementAt(x)+"\"");
+                //StreamGobbler inputGobbler = new StreamGobbler(exec.getInputStream(), "INPUT");
+                //inputGobbler.start();
+                //exec.waitFor();
+                //fos2.write((inputGobbler.getLinea().trim()+"\n").getBytes());
                 fos.write((dlm.getElementAt(x)+"\n").getBytes());
             }
             fos.flush();
             fos.close();
-            fos2.flush();
-            fos2.close();
+            //fos2.flush();
+            //fos2.close();
+            Process exec = rt.exec("C:\\HerliautomocionVideoScreen\\pscp -pw " + passRaspberry + " C:\\HerliautomocionVideoScreen\\youtubeURLs.txt " + userRaspberry + "@" + ipRaspberry + ":/home/pi/youtubeURLs.txt");
+            StreamGobbler inputGobbler = new StreamGobbler(exec.getInputStream(), "INPUT");
+            inputGobbler.start();
+            exec.waitFor();
+            //rt.exec("C:\\HerliautomocionVideoScreen\\pscp -pw \"+passRaspberry+\" C:\\HerliautomocionVideoScreen\\playlist.txt "+userRaspberry+"@"+ipRaspberry+":/home/pi/playlist.txt");
 
-            rt.exec("C:\\HerliautomocionVideoScreen\\pscp -pw ak47cold C:\\HerliautomocionVideoScreen\\youtubeURLs.txt pi@192.168.1.16:/home/pi/youtubeURLs.txt");
-            rt.exec("C:\\HerliautomocionVideoScreen\\pscp -pw ak47cold C:\\HerliautomocionVideoScreen\\playlist.txt pi@192.168.1.16:/home/pi/playlist.txt");
-
-            ejecutarComandoSSH("pkill -f \"omxplayer\"","192.168.1.16");
-            ejecutarComandoSSH("pkill -f \"playvideos.sh\"","192.168.1.16");
-            ejecutarComandoSSH("nohup /home/pi/playvideos.sh &","192.168.1.16");
+            ejecutarComandoSSH("sudo pkill -f \"omxplayer\"",ipRaspberry);
+            ejecutarComandoSSH("sudo pkill -f \"youtube-dl\"",ipRaspberry);
+            ejecutarComandoSSH("sudo pkill -f \"playvideos.sh\"",ipRaspberry);
+            ejecutarComandoSSH("sudo nohup /home/pi/playvideos.sh &",ipRaspberry);
 
             dlm.clear();
-            ejecutarComandoSSHRetorno("cat /home/pi/youtubeURLs.txt","192.168.1.16");
+            ejecutarComandoSSHRetorno("cat /home/pi/youtubeURLs.txt",ipRaspberry);
             list1.setModel(dlm);
             JOptionPane.showMessageDialog(frame, "Fichero Copiado correctamente, la lista se está actualizando.");
         }catch(Exception e){}
@@ -121,12 +140,12 @@ public class VideoSelector {
         frame.setVisible(true);
     }
     public void ejecutarComandoSSH(String comando,String nombreMaquina){
-        UserInfo ui = new MyUserInfo("pi", "ak47cold", null);
+        UserInfo ui = new MyUserInfo(userRaspberry, passRaspberry, null);
         JSch jsch = null;
         Session session = null;
         try {
             jsch = new JSch();
-            session = jsch.getSession("pi", nombreMaquina, 22);
+            session = jsch.getSession(userRaspberry, nombreMaquina, portRaspberry);
             session.setUserInfo(ui);
             session.connect();
             Channel channel = session.openChannel("exec");
@@ -178,12 +197,12 @@ public class VideoSelector {
         }
     }
     public void ejecutarComandoSSHRetorno(String comando, String nombreMaquina){
-        UserInfo ui = new MyUserInfo("pi", "ak47cold", null);
+        UserInfo ui = new MyUserInfo(userRaspberry, passRaspberry, null);
         JSch jsch = null;
         Session session = null;
         try {
             jsch = new JSch();
-            session = jsch.getSession("pi", nombreMaquina, 22);
+            session = jsch.getSession(userRaspberry, nombreMaquina, portRaspberry);
             session.setUserInfo(ui);
             session.connect();
             Channel channel = session.openChannel("exec");
